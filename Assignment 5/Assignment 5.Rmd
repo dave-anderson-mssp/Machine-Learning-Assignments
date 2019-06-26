@@ -1,0 +1,77 @@
+---
+title: "Assignment 5"
+author: "Dave Anderson"
+date: "March 12, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(tidyverse)
+library(boot)
+```
+
+7.3, 7.9, 7.10 and 7.11
+
+#7.3)
+```{r}
+x <- -2:2
+y <-  1 + x + -2 * (x-1)^2 * I(x>1)
+plot(x, y)
+```
+*The relationship is linear, slope of 1 intercept of 1 until x is greater than or equal to one. The relationship still appears to follow this pattern at x=1, since including the (x-1)^2 results in 0, keeping the linear pattern. However, when x=2, we add the effect of -2(x-1)^2* 
+
+#7.9)
+##a)
+```{r}
+attach(Boston)
+boston <- Boston
+set.seed(2019)
+
+lm.fit <- lm(nox ~poly(dis,3),boston)
+summary(lm.fit)
+```
+```{r}
+boston <- as.tibble(boston)
+ggplot(boston,aes(dis,nox))+geom_point()+geom_smooth(method = "lm",formula = y ~ poly(x,3),color = "red")
+```
+
+*Our regression output indicates that the polynomial terms are significant, the plot shows the regression fitting the data fairly well, maybe missing information on the left tail.*
+
+##b)
+```{r}
+ggplot(boston,aes(dis,nox))+geom_point()+
+  geom_smooth(method = "lm",formula = y ~ x,color = "red")+
+  geom_smooth(method = "lm",formula = y ~ poly(x,2),color = "orange")+
+  geom_smooth(method = "lm",formula = y ~ poly(x,3),color = "yellow")+
+  geom_smooth(method = "lm",formula = y ~ poly(x,4),color = "green")+
+  geom_smooth(method = "lm",formula = y ~ poly(x,5),color = "blue")+
+  geom_smooth(method = "lm",formula = y ~ poly(x,6),color = "purple")
+```
+
+```{r}
+rss <- rep(NA,10)
+for (i in 1:10) {
+  lm.fit2 <- lm(nox ~ poly(dis,i),boston)
+  rss[i] <- sum(lm.fit2$residuals^2)
+}
+rss
+
+
+```
+
+*We can see that as the degree polynomial increases, the RSS decreases. The graph is a little jumbled, so I only plotted the first six polynomial degreees. All of the lines "catch" the data fairly well (other than linear) towards the middle part of the data. The higher degree polynomials definitely fit better, but there doesn't seem to be a large difference between them*
+
+##c)
+```{r}
+deltas <-  rep(NA, 10)
+for (i in 1:10) {
+    glm.fit = glm(nox ~ poly(dis, i), data = boston)
+    deltas[i] = cv.glm(boston, glm.fit, K = 10)$delta[2]
+}
+plot(1:10, deltas, xlab = "Degree", ylab = "CV error", type = "l", pch = 20, 
+    lwd = 2)
+```
+
+

@@ -1,0 +1,169 @@
+---
+title: "Assignment 3 Resampling"
+author: "Dave Anderson"
+date: "February 18, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+5.8 6.2 6.10
+
+
+#5.8)
+##a)
+```{r}
+set.seed(1)
+x=rnorm(100)
+y=x-2*x^2+rnorm(100)
+```
+*n = 100, p = 2*
+$Y = X-2X^2+e$
+
+##b)
+```{r}
+plot(x,y)
+```
+*The relationships between x and y is quadratic. x from -2 to 2, y from about -10 to 1*
+
+##c)
+i)
+```{r}
+library(boot)
+data = data.frame(x,y)
+set.seed(1)
+glm1 <- glm(y ~ x)
+cv.glm(data,glm1)$delta
+```
+ii)
+```{r}
+glm2 <- glm(y ~poly(x,2))
+cv.glm(data,glm2)$delta
+```
+iii)
+```{r}
+glm3 <- glm(y ~ poly(x,3))
+cv.glm(data,glm3)$delta
+```
+iiii)
+```{r}
+glm4 <- glm(y ~ poly(x,4))
+cv.glm(data,glm4)$delta
+```
+
+##d)
+i)
+```{r}
+set.seed(2)
+glm1 <- glm(y ~ x)
+cv.glm(data,glm1)$delta
+```
+
+ii)
+```{r}
+glm2 <- glm(y ~poly(x,2))
+cv.glm(data,glm2)$delta
+```
+iii)
+```{r}
+glm3 <- glm(y ~ poly(x,3))
+cv.glm(data,glm3)$delta
+```
+iiii)
+```{r}
+glm4 <- glm(y ~ poly(x,4))
+cv.glm(data,glm4)$delta
+```
+*The results are the exact same, as expected, because LOOCV is evaluating the same n folds*
+
+##e)
+*The quadratic model had the lowest test error rate, which is expected because we know the true nature of x and y is quadratic*
+
+##f)
+```{r}
+summary(glm1)
+summary(glm2)
+summary(glm3)
+summary(glm4)
+```
+*In each model, the linear and quadratic coefficients are the only significant estimates. This is similar to our CV results, but I didn't expect the linear coefficient to be significant*
+
+#6.2)
+##a)
+*iii Lasso is less flexible and will provide more accurate predictions because of less variance and more bias.*
+##b)
+*iii Ridge regression produces similar results to lasso*
+##c)
+*ii non-linear methods are more flexible, with less bias and more variance*
+
+#6.10)
+##a)
+```{r}
+set.seed(2019)
+p <- 20
+n <- 1000
+x <- matrix(rnorm(n * p),n,p)
+B <- rnorm(p)
+B[3] <- 0
+B[5] <- 0
+B[8] <- 0
+B[11] <- 0
+B[19] <- 0
+e <- rnorm(p)
+y <- x %*% B + e
+```
+
+##b)
+```{r}
+train <- sample(seq(1000),100,replace = FALSE)
+y.train <- y[train,]
+y.test <- y[-train,]
+x.train <- x[train,]
+x.test <- x[-train,]
+
+```
+
+##c)
+```{r}
+library(leaps)
+regfit.full <- regsubsets(y ~ ., data = data.frame(x = x.train, y = y.train),nvmax = p )
+val.errors <- rep(NA,p)
+x_cols <- colnames(x,do.NULL = FALSE,prefix = "x.")
+for (i in 1:p) {
+  coefi <- coef(regfit.full, id = i)
+  pred <- as.matrix(x.train[,x_cols %in% names(coefi)]) %*% coefi[names(coefi) %in% x_cols]
+  val.errors[i] <- mean((y.train - pred)^2)
+}
+plot(val.errors, ylab = "Training MSE", pch = 19, type = "b")
+```
+
+##d)
+```{r}
+val.errors = rep(NA, p)
+for (i in 1:p) {
+    coefi = coef(regfit.full, id = i)
+    pred = as.matrix(x.test[, x_cols %in% names(coefi)]) %*% coefi[names(coefi) %in% 
+        x_cols]
+    val.errors[i] = mean((y.test - pred)^2)
+}
+plot(val.errors, ylab = "Test MSE", pch = 19, type = "b")
+```
+
+
+
+##e)
+```{r}
+which.min(val.errors)
+```
+*The model with 14 predictors had the smallest test MSE*
+
+##f)
+```{r}
+coef(regfit.full,id = 14)
+B
+```
+*The B coefficients used to generate the data that were set to zero (3,5,8,11,19) are all discluded from the variable selection. The other estimates are very close to what the true values are. x.6 was the only other variable not included, which had the smallest coefficient other than 0*
+
+##g)

@@ -1,0 +1,271 @@
+---
+title: "Assignment 2"
+author: "Dave Anderson"
+date: "February 10, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+4.6, 4.8, 4.9,  4.10, 4.11, 4.12, 4.13
+
+
+##4.6)
+###a)*38%*
+###b)*10 More hours, 50 total*
+
+##4.8)
+*With KNN=1, the training error rate will be 0% because the nearest neighbor is the response itself. That gives KNN a 38% test rate, so I would chose logistic with a lower test error rate*
+
+##4.9)
+###a) 
+$P(x)/1-P(x) = .37$
+$P(X) = 0.27$
+*27% chance of defaulting*
+
+###b)
+$0.16/(1-0.16) = 0.19$
+*The odds are 0.19*
+
+##4.10
+```{r}
+
+library(ISLR)
+library(tidyverse)
+library(MASS)
+library(class)
+
+data <- as.data.frame(Weekly)
+summary(Weekly)
+
+pairs(data, col = data$Direction)
+
+ggplot(data)+
+  geom_point(aes(Year,Volume))
+```
+*There aren't really any patterns within the variables beyond the correlation between year and volume.*
+
+###b)
+```{r}
+glm1 <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, data = data, family = binomial)
+summary(glm1)
+```
+
+*Lag2 is the only statistically significant coefficient with a p-value of 0.03*
+
+###c)
+```{r}
+probs <- predict(glm1, type = "response")
+pred.glm <- rep("Down", length(probs))
+pred.glm[probs > 0.5] <- "Up"
+table(pred.glm, data$Direction)
+```
+
+*Our training error rate is (430+48)/1089 = 43%. So our model did not work very well on our training data. The model over-predicted "up" by quite a bit. ie large false positive rate.*
+
+###d)
+```{r}
+train <- data %>% filter(Year <= 2008)
+test <- data %>% filter(Year >= 2009)
+
+glm2 <- glm(Direction ~ Lag2, data = train, family = binomial)
+summary(glm2)
+
+probs2 <- predict(glm2, test, type = "response")
+pred.glm2 <- rep("Down", length(probs2))
+pred.glm2[probs2 > 0.5] <- "Up"
+table(pred.glm2, test$Direction)
+```
+
+*Here we have a better test error rate of about 38%, but we still see a high number of false positives*
+
+###e)
+```{r}
+
+lda <- lda(Direction ~ Lag2, data = train)
+summary(lda)
+
+pred.lda <- predict(lda, test)
+table(pred.lda$class, test$Direction)
+```
+*The lda approach actually resulted in the same confusion matrix as the logistic regression.*
+
+###f)
+```{r}
+qda <- qda(Direction ~ Lag2, data = train)
+pred.qda <- predict(qda, test)
+table(pred.qda$class, test$Direction)
+```
+
+*The QDA model predicts the up direction 100% of the time. The error rate doesn't seem bad on paper, but it will be wrong everytime the market goes down.*
+
+###g)
+
+```{r}
+set.seed(2019)
+
+```
+###h)
+*Logistic and LDA both provide smaller, similar test rates*
+
+#4.11)
+###a)
+```{r}
+attach(Auto)
+
+mpg01 <- rep(0,length(mpg))
+mpg01[mpg > median(mpg)] = 1
+auto <- data.frame(Auto,mpg01)
+```
+
+###b)
+```{r}
+cor(auto[,-9])
+
+ggplot(auto)+geom_boxplot(aes(factor(cylinders),mpg, group = factor(cylinders)))
+ggplot(auto)+geom_point(aes(horsepower,mpg))
+```
+*There seems to be a negative relationship between cylinders, weight, displacement, horsepower with MPG*
+
+###c)
+```{r}
+train <-  (year%%2 == 0)  # if the year is even
+test <- !train
+auto.train <-  auto[train, ]
+auto.test <-  auto[test, ]
+mpg01.test <-  mpg01[test]
+```
+###d)
+```{r}
+lda.fit <- lda(mpg01 ~ cylinders + weight + displacement + horsepower, data = auto.train)
+lda.pred <-  predict(lda.fit, auto.test)
+mean(lda.pred$class != mpg01.test)
+```
+*12.6% test error rate*
+
+###e)
+```{r}
+qda.fit <-  qda(mpg01 ~ cylinders + weight + displacement + horsepower, data = auto.train)
+qda.pred <-  predict(qda.fit, auto.test)
+mean(qda.pred$class != mpg01.test)
+```
+*13% Test error rate*
+
+###f)
+```{r}
+glm.fit <-  glm(mpg01 ~ cylinders + weight + displacement + horsepower, data = auto.train, family = binomial)
+glm.probs <- predict(glm.fit, auto.test, type = "response")
+glm.pred <-  rep(0, length(glm.probs))
+glm.pred[glm.probs > 0.5] = 1
+mean(glm.pred != mpg01.test)
+
+```
+*12.1% test error rate*
+
+###g)
+```{r}
+train.X <-  cbind(cylinders, weight, displacement, horsepower)[train, ]
+test.X <-  cbind(cylinders, weight, displacement, horsepower)[test, ]
+train.mpg01 <-  mpg01[train]
+set.seed(1)
+# KNN(k=1)
+knn.pred <-  knn(train.X, test.X, train.mpg01, k = 1)
+mean(knn.pred != mpg01.test)
+
+#KNN(k = 10)
+knn.pred2 <-  knn(train.X, test.X, train.mpg01, k = 10)
+mean(knn.pred2 !=  mpg01.test)
+
+#KNN(k = 100)
+knn.pred3 <- knn(train.X, test.X, train.mpg01, k = 100)
+mean(knn.pred3 != mpg01.test)
+```
+*K = 1 performs better than K = 10, but K = 100 is the best with a test error rate of 14.3% Logistic regression had the lowest test error of them all.*
+
+#4.12)
+###a)
+```{r}
+Power <-  function() {
+    2^3
+}
+print(Power())
+```
+###b)
+```{r}
+Power2 <-  function(x, a) {
+    x^a
+}
+Power2(3, 8)
+```
+
+###c)
+```{r}
+Power2(10,3)
+Power2(8,17)
+Power2(131,3)
+```
+
+###d)
+```{r}
+Power3 <-  function(x, a) {
+    result <-  x^a
+    return(result)
+}
+```
+
+###e)
+```{r}
+x <- 1:10
+plot(x,Power3(x,2), log = "xy")
+```
+###f)
+```{r}
+PlotPower <-  function(x, a) {
+    plot(x, Power3(x, a))
+}
+PlotPower(x, 3)
+```
+
+#4.13)
+###a)
+```{r}
+attach(Boston)
+crime01 <-  rep(0, length(crim))
+crime01[crim > median(crim)] = 1
+boston <-  data.frame(Boston, crime01)
+
+train <-  1:(dim(boston)[1]/2)
+test <-  (dim(boston)[1]/2 + 1):dim(boston)[1]
+boston.train <-  boston[train, ]
+boston.test <-  boston[test, ]
+crime01.test = crime01[test]
+
+cor(boston)
+```
+```{r}
+#logistic
+glm.fit <- glm(crime01 ~ . -crime01 -crim, family = binomial, data = boston.train)
+summary(glm.fit)
+glm.probs <-  predict(glm.fit, boston.test, type = "response")
+glm.pred <-  rep(0, length(glm.probs))
+glm.pred[glm.probs > 0.5] = 1
+mean(glm.pred != crime01.test)
+```
+```{r}
+#logistic2
+glm.fit2 <- glm(crime01 ~ nox + age + rad + ptratio + black + medv, data = boston.train, family = binomial)
+summary(glm.fit2)
+glm.probs2 <-  predict(glm.fit2, boston.test, type = "response")
+glm.pred2 <-  rep(0, length(glm.probs2))
+glm.pred2[glm.probs2 > 0.5] = 1
+mean(glm.pred2 != crime01.test)
+```
+```{r}
+#LDA
+lda.fit <- lda(crime01 ~ nox + age + rad + ptratio + black + medv, data = boston.train)
+lda.pred <- predict(lda.fit,boston.test)
+mean(lda.pred$class != crime01.test)
+```
+*Logistic regression with selected variables performed the best*
